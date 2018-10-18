@@ -21,6 +21,56 @@
 namespace larryTheCoder\PartyPlus\party;
 
 
+use larryTheCoder\PartyPlus\PartyMain;
+use pocketmine\Player;
+
 class Party {
 
+	/** @var PartyMain */
+	private $plugin;
+	/** @var PartyHandler[] */
+	private $parties;
+
+	public function __construct(PartyMain $plugin){
+		$this->plugin = $plugin;
+		$this->parties = [];
+	}
+
+	/**
+	 * Creates a new party for the player.
+	 *
+	 * @param Player $p
+	 */
+	public function createParty(Player $p){
+		// This check is required as this is inside the API handler
+		if($this->hasParty($p->getName())){
+			$p->sendMessage($this->plugin->getPrefix() . "§cYou already created a party.");
+
+			return;
+		}
+
+		$party = new PartyHandler($this->plugin, $p);
+		$this->parties[strtolower($p->getName())] = $party;
+	}
+
+	/**
+	 * Disband existing party from a player.
+	 *
+	 * @param Player $p
+	 */
+	public function disbandParty(Player $p){
+		// Same as above, API boundaries
+		if(!$this->hasParty($p->getName())){
+			$p->sendMessage($this->plugin->getPrefix() . "§cYou don't have a party yet.");
+
+			return;
+		}
+
+		$party = new PartyHandler($this->plugin, $p);
+		$this->parties[strtolower($p->getName())] = $party;
+	}
+
+	public function hasParty(string $user): bool{
+		return isset($this->parties[strtolower($user)]);
+	}
 }

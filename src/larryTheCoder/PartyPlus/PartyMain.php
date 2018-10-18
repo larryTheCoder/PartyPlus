@@ -29,4 +29,14 @@ class PartyMain extends PluginBase {
 		$this->getLogger()->error("This plugin is not finished. Disabling");
 		$this->getServer()->getPluginManager()->disablePlugin($this);
 	}
+
+	/**
+	 * Gets the prefix for this plugin.
+	 *
+	 * @return string
+	 */
+	public function getPrefix(): string{
+		return "§9§lParty>§r ";
+	}
+
 }

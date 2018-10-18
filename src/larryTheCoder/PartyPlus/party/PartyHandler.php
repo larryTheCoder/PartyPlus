@@ -20,7 +20,9 @@
 
 namespace larryTheCoder\PartyPlus\party;
 
+use larryTheCoder\PartyPlus\PartyMain;
 use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\Player;
 
 class PartyHandler implements Listener {
@@ -32,10 +34,13 @@ class PartyHandler implements Listener {
 	private $leader;
 	/** @var Player[] */
 	private $members;
-	/** @var bool[] */
+	/** @var Player[] */
 	private $admins;
+	/** @var PartyMain */
+	private $plugin;
 
-	public function __construct(Player $leader){
+	public function __construct(PartyMain $plugin, Player $leader){
+		$this->plugin = $plugin;
 		$this->leader = $leader;
 		$this->members = [];
 		$this->admins = [];
@@ -82,6 +87,16 @@ class PartyHandler implements Listener {
 	}
 
 	/**
+	 * Checks if the user is already in party
+	 *
+	 * @param string $user
+	 * @return bool
+	 */
+	public function isInParty(string $user): bool{
+		return $this->isLeader($user) || $this->isMember($user);
+	}
+
+	/**
 	 * Checks if the user has a privileges to use leader
 	 * features.
 	 *
@@ -92,12 +107,26 @@ class PartyHandler implements Listener {
 		return isset($this->admins[$user]);
 	}
 
-
 	/**
 	 * @param string $user
 	 * @return bool
 	 */
 	public function isLeader(string $user){
 		return strtolower($this->leader->getName()) === strtolower($user);
+	}
+
+	/**
+	 * @param PlayerQuitEvent $event
+	 */
+	public function onPlayerLeave(PlayerQuitEvent $event){
+		if($event->getPlayer() !== $this->leader){
+			return;
+		}
+
+		foreach($this->members as $key => $player){
+			$player->sendMessage($this->plugin->getPrefix() . "§eThe leader for this party has quit the server, disbanding");
+			unset($this->members[$key]);
+		}
+		unset($this->admins);
 	}
 }

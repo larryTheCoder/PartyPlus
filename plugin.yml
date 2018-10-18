@@ -1,0 +1,5 @@
+name: PartyPlus
+main: larryTheCoder\PartyPlus\PartyMain
+version: "1.0-SNAPSHOT"
+api: 3.3.0+ALPHA9
+author: larryTheCoder

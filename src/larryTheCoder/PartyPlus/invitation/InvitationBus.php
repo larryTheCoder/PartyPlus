@@ -20,8 +20,9 @@
 
 namespace larryTheCoder\PartyPlus\invitation;
 
+use larryTheCoder\PartyPlus\party\PartyHandler;
 use larryTheCoder\PartyPlus\PartyMain;
-use pocketmine\scheduler\AsyncTask;
+use pocketmine\Player;
 use pocketmine\scheduler\Task;
 use pocketmine\Server;
 
@@ -35,77 +36,51 @@ class InvitationBus {
 
 	/** @var PartyMain */
 	private $plugin;
-	/** @var int[] */
+	/** @var array */
 	private $userPool;
+	/** @var int[] */
+	private $userTimeout = [];
+	/** @var int */
+	private $inviteTimeout = 20;
 
 	public function __construct(PartyMain $plugin){
 		$this->plugin = $plugin;
 
-		// This actually unnecessary to tick them on other thread.
-		// But its good to practice to use it ¯\_(ツ)_/¯
-		$plugin->getServer()->getAsyncPool()->submitTask(new class($this) extends AsyncTask {
+		$plugin->getScheduler()->scheduleRepeatingTask(new class($this) extends Task {
 
-			private $inviteBus;
-			private $pool;
+			private $handler;
 
-			public function __construct(InvitationBus $bus){
-				$this->inviteBus = $bus;
-				$this->pool = $bus->getInvitePool();
+			public function __construct(InvitationBus $handler){
+				$this->handler = $handler;
 			}
 
-			public function onRun(){
-				foreach($this->pool as $user => $time){
-					$this->pool[$user]++;
-				}
+			/**
+			 * Actions to execute when run
+			 *
+			 * @param int $currentTick
+			 *
+			 * @return void
+			 */
+			public function onRun(int $currentTick){
+				$this->handler->handleInvitePool();
 			}
+		}, 20);
+	}
 
-			public function onCompletion(Server $server){
-				$this->inviteBus->flagInvites($this->pool);
-				if(empty($this->pool)){
-					$this->inviteBus->getPlugin()->getScheduler()->scheduleDelayedTask(new class($this, $server) extends Task {
+	public function addInvitePool(Player $p, PartyHandler $party){
+		$this->userPool[$p->getName()] = [$p, $party];
+		$this->userTimeout[$p->getName()] = 0;
+	}
 
-						private $pool;
-						private $server;
-
-						public function __construct($anonymousClass, Server $server){
-							$this->pool = $anonymousClass;
-							$this->server = $server;
-						}
-
-						public function onRun(int $currentTick){
-							if(!$this->pool->inviteBus->getPlugin()->isDisabled()){
-								$this->server->getAsyncPool()->submitTask($this); // Submit this task again
-							}
-						}
-					}, 60);
-
-					return;
-				}
-				if(!$this->inviteBus->getPlugin()->isDisabled()){
-					$server->getAsyncPool()->submitTask($this); // Submit this task again
-				}
+	public function handleInvitePool(){
+		foreach($this->userTimeout as $user => $time){
+			if($time >= $this->inviteTimeout){
+				$p = Server::getInstance()->getPlayer($user);
+				$p->sendMessage($this->plugin->getPrefix() . "§cYour invitation has expired.");
+				unset($this->userPool[$user]);
+				unset($this->userTimeout[$user]);
 			}
-		});
-	}
-
-	/**
-	 * Retrieves the invitation pool
-	 */
-	public function getInvitePool(): array{
-		return $this->userPool;
-	}
-
-	/**
-	 * @param $pool
-	 */
-	public function flagInvites($pool){
-	}
-
-	public function getPlugin(): PartyMain{
-		return $this->plugin;
-	}
-
-	public function addInvitePool(string $player){
-
+			$this->userTimeout[$user]++;
+		}
 	}
 }

@@ -22,7 +22,9 @@ namespace larryTheCoder\PartyPlus\party;
 
 
 use larryTheCoder\PartyPlus\PartyMain;
+use larryTheCoder\PartyPlus\Utils;
 use pocketmine\Player;
+use pocketmine\Server;
 
 class Party {
 
@@ -40,37 +42,63 @@ class Party {
 	 * Creates a new party for the player.
 	 *
 	 * @param Player $p
+	 * @param bool $silence
 	 */
-	public function createParty(Player $p){
+	public function createParty(Player $p, bool $silence = false){
 		// This check is required as this is inside the API handler
 		if($this->hasParty($p->getName())){
-			$p->sendMessage($this->plugin->getPrefix() . "§cYou already created a party.");
+			if(!$silence) $p->sendMessage(Utils::getPrefix() . "§cYou already created a party.");
 
 			return;
 		}
 
 		$party = new PartyHandler($this->plugin, $p);
 		$this->parties[strtolower($p->getName())] = $party;
+
+		if(!$silence) $p->sendMessage(Utils::getPrefix() . "§bCreated you a new party");
+	}
+
+	public function hasParty(string $user): bool{
+		return isset($this->parties[strtolower($user)]);
+	}
+
+	/**
+	 * Gets the party handler for the user.
+	 * A new party will be created if the player
+	 * don't have a party.
+	 *
+	 * @param $user string
+	 * @return null|PartyHandler
+	 */
+	public function getParty(string $user): ?PartyHandler{
+		if(!$this->hasParty($user)){
+			$pl = Server::getInstance()->getPlayer($user);
+			if(is_null($pl)){
+				return null;
+			}
+			$this->createParty($pl);
+
+			return $this->getParty($user);
+		}
+
+		return $this->parties[strtolower($user)];
 	}
 
 	/**
 	 * Disband existing party from a player.
 	 *
 	 * @param Player $p
+	 * @param bool $silence
 	 */
-	public function disbandParty(Player $p){
+	public function disbandParty(Player $p, bool $silence = false){
 		// Same as above, API boundaries
 		if(!$this->hasParty($p->getName())){
-			$p->sendMessage($this->plugin->getPrefix() . "§cYou don't have a party yet.");
+			if(!$silence) $p->sendMessage(Utils::getPrefix() . "§cYou don't have a party.");
 
 			return;
 		}
 
-		$party = new PartyHandler($this->plugin, $p);
-		$this->parties[strtolower($p->getName())] = $party;
-	}
-
-	public function hasParty(string $user): bool{
-		return isset($this->parties[strtolower($user)]);
+		$this->getParty($p->getName())->disbandParty();
+		unset($this->parties[strtolower($p->getName())]);
 	}
 }

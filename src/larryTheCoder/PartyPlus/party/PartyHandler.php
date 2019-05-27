@@ -21,9 +21,12 @@
 namespace larryTheCoder\PartyPlus\party;
 
 use larryTheCoder\PartyPlus\PartyMain;
+use larryTheCoder\PartyPlus\Utils;
 use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\Player;
+use pocketmine\scheduler\TaskHandler;
 
 class PartyHandler implements Listener {
 
@@ -39,6 +42,9 @@ class PartyHandler implements Listener {
 	/** @var PartyMain */
 	private $plugin;
 
+	/** @var TaskHandler */
+	private $partyKillTask;
+
 	public function __construct(PartyMain $plugin, Player $leader){
 		$this->plugin = $plugin;
 		$this->leader = $leader;
@@ -47,10 +53,43 @@ class PartyHandler implements Listener {
 	}
 
 	/**
+	 * Place a player into the list of this
+	 * party. It used to register a new user to
+	 * this party.
+	 *
+	 * @param Player $p The player itself
+	 */
+	public function addMember(Player $p){
+		if(isset($this->members[$p->getName()])){
+			return;
+		}
+
+		$this->members[$p->getName()] = $p;
+	}
+
+	/**
+	 * Remove a member of this party. Will return true if the player
+	 * has been removed from the list. If its not, then its indicates
+	 * that the player is not in the party.
+	 *
+	 * @param string $pl The player name itself
+	 * @return bool      Return true if succeeded, false if otherwise
+	 */
+	public function removeMember(string $pl): bool{
+		if(isset($this->members[$pl])){
+			return false;
+		}
+		unset($this->members[$pl]);
+
+		return true;
+	}
+
+	/**
 	 * Checks if the user is in this party.
 	 *
-	 * @param string $user
-	 * @return bool
+	 * @param string $user The name of the player
+	 * @return bool        Return true if the name of the player is
+	 *                     the member of this party.
 	 */
 	public function isMember(string $user): bool{
 		return isset($this->members[$user]);
@@ -60,29 +99,29 @@ class PartyHandler implements Listener {
 	 * Adds or removes the special privileges
 	 * for the user.
 	 *
-	 * @param Player $user
+	 * @param string $user
 	 * @param int $type
 	 */
-	public function setUserPermission(Player $user, int $type){
+	public function setUserPermission(string $user, int $type){
 		switch($type){
 			case self::USER_ADMIN:
 				// Just check if this user already an admin
-				if($this->isAdmin($user->getName())){
+				if($this->isAdmin($user)){
 					break;
 				}
 
-				$this->admins[$user->getName()] = $user;
+				$this->admins[$user] = $user;
 				break;
 			case self::USER_NORMAL:
 				// A normal user must have an admin
-				if(!$this->isAdmin($user->getName())){
+				if(!$this->isAdmin($user)){
 					break;
 				}
 
-				unset($this->admins[$user->getName()]);
+				unset($this->admins[$user]);
 				break;
 			default:
-				throw new \InvalidArgumentException("Unknown permission handler been given for user permission.");
+				throw new \InvalidArgumentException("Unknown permission type is given for the user's party privileges.");
 		}
 	}
 
@@ -104,10 +143,12 @@ class PartyHandler implements Listener {
 	 * @return bool
 	 */
 	public function isAdmin(string $user): bool{
-		return isset($this->admins[$user]);
+		return isset($this->admins[$user]) || $this->isLeader($user);
 	}
 
 	/**
+	 * Checks if the user is this party leader.
+	 *
 	 * @param string $user
 	 * @return bool
 	 */
@@ -116,17 +157,55 @@ class PartyHandler implements Listener {
 	}
 
 	/**
+	 * Disbands this party and notifies all players
+	 * who joined this party about it and remove them
+	 * from this party list.
+	 *
+	 * @param bool $markAsLeave
+	 */
+	public function disbandParty(bool $markAsLeave = false){
+		/** @var Player $pl */
+		foreach($this->members as $key => $pl){
+			if(!$markAsLeave){
+				$pl->sendMessage(Utils::getPrefix() . "§cYour leader just disbanded his party.");
+			}else{
+				$pl->sendMessage(Utils::getPrefix() . "§eYour leader just left the server and didn't joined back in time.");
+				$pl->sendMessage(Utils::getPrefix() . "§eThe party has now disbanded.");
+			}
+			unset($this->members[$key]);
+		}
+
+		unset($this->admins);
+	}
+
+	/**
 	 * @param PlayerQuitEvent $event
 	 */
 	public function onPlayerLeave(PlayerQuitEvent $event){
-		if($event->getPlayer() !== $this->leader){
+		if($event->getPlayer()->getName() !== $this->leader->getName()){
 			return;
 		}
 
-		foreach($this->members as $key => $player){
-			$player->sendMessage($this->plugin->getPrefix() . "§eThe leader for this party has quit the server, disbanding");
-			unset($this->members[$key]);
+		$this->partyKillTask = PartyMain::getInstance()->getScheduler()->scheduleDelayedTask(new PartyKillTask($this), 1200);
+	}
+
+	/**
+	 * @param PlayerJoinEvent $event
+	 */
+	public function onPlayerJoin(PlayerJoinEvent $event){
+		if($event->getPlayer()->getName() !== $this->leader->getName()){
+			return;
 		}
-		unset($this->admins);
+
+		PartyMain::getInstance()->getScheduler()->cancelTask($this->partyKillTask->getTaskId());
+	}
+
+	/**
+	 * Returns the leader of this party.
+	 *
+	 * @return Player
+	 */
+	public function getLeader(){
+		return $this->leader;
 	}
 }

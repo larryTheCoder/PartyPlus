@@ -22,9 +22,9 @@ namespace larryTheCoder\PartyPlus\invitation;
 
 use larryTheCoder\PartyPlus\party\PartyHandler;
 use larryTheCoder\PartyPlus\PartyMain;
+use larryTheCoder\PartyPlus\Utils;
 use pocketmine\Player;
 use pocketmine\scheduler\Task;
-use pocketmine\Server;
 
 /**
  * Adds an invitation bus for the specific user
@@ -36,9 +36,9 @@ class InvitationBus {
 
 	/** @var PartyMain */
 	private $plugin;
-	/** @var array */
+	/** @var PartyHandler[][] */
 	private $userPool;
-	/** @var int[] */
+	/** @var int[][] */
 	private $userTimeout = [];
 	/** @var int */
 	private $inviteTimeout = 20;
@@ -67,20 +67,67 @@ class InvitationBus {
 		}, 20);
 	}
 
-	public function addInvitePool(Player $p, PartyHandler $party){
-		$this->userPool[$p->getName()] = [$p, $party];
-		$this->userTimeout[$p->getName()] = 0;
+	/**
+	 * Returns the available invites from the player
+	 * given. This will return the list of the
+	 * PartyHandler itself.
+	 *
+	 * @param Player $p
+	 * @return array|null
+	 */
+	public function getInvites(Player $p){
+		return !isset($this->userPool[$p->getName()]) ? null : $this->userPool[$p->getName()];
 	}
 
-	public function handleInvitePool(){
-		foreach($this->userTimeout as $user => $time){
-			if($time >= $this->inviteTimeout){
-				$p = Server::getInstance()->getPlayer($user);
-				$p->sendMessage($this->plugin->getPrefix() . "§cYour invitation has expired.");
-				unset($this->userPool[$user]);
-				unset($this->userTimeout[$user]);
+	/**
+	 * Used to accept the invitation from a party leader.
+	 * All other invites will be revoked after an invite is
+	 * being accepted.
+	 *
+	 * @param Player $p
+	 * @param int $inviteId
+	 */
+	public function acceptInvite(Player $p, int $inviteId = 0){
+		if(!isset($this->userPool[$p->getName()]) && !isset($this->userPool[$p->getName()][$inviteId])){
+			$this->userPool[$p->getName()][$inviteId]->addMember($p);
+		}
+	}
+
+	/**
+	 * Adds the player to the invite pool.
+	 * The player will be ticked every x seconds and after
+	 * the timeout, the player will be notified about it and
+	 * that player will not be able to join it again.
+	 *
+	 * @param Player $p
+	 * @param PartyHandler $party
+	 */
+	public function addInvitePool(Player $p, PartyHandler $party){
+		$this->userPool[$p->getName()][] = [$p, $party];
+		$this->userTimeout[$p->getName()][] = 0;
+
+		$p->sendMessage(Utils::getPrefix() . "§bYou have a party invitation from §d" . $party->getLeader()->getName());
+		$p->sendMessage(Utils::getPrefix() . "§bUse §e/p accept §bto accept that party invitation.");
+	}
+
+	function handleInvitePool(){
+		foreach($this->userTimeout as $user => $inviteId){
+			foreach($inviteId as $time){
+				$this->userTimeout[$user]++;
+				if($time >= $this->inviteTimeout){
+					/** @var Player $p */
+					/** @var PartyHandler $party */
+					$p = $this->userPool[$user][$inviteId][0];
+					$party = $this->userPool[$user][$inviteId][1];
+
+					// Messages
+					$p->sendMessage(Utils::getPrefix() . "§cYour invitation from §e{$party->getLeader()->getName()}§c has expired.");
+					$party->getLeader()->sendMessage(Utils::getPrefix() . "§d{$user}§c rejected your party invite request.");
+
+					unset($this->userPool[$user][$inviteId]);
+					unset($this->userTimeout[$user][$inviteId]);
+				}
 			}
-			$this->userTimeout[$user]++;
 		}
 	}
 }

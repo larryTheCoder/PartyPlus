@@ -20,14 +20,55 @@
 
 namespace larryTheCoder\PartyPlus;
 
-
+use larryTheCoder\PartyPlus\commands\CommandHandler;
+use larryTheCoder\PartyPlus\invitation\InvitationBus;
+use larryTheCoder\PartyPlus\party\Party;
 use pocketmine\plugin\PluginBase;
 
 class PartyMain extends PluginBase {
 
+	/** @var PartyMain */
+	private static $instance = null;
+	/** @var Party */
+	private $party = null;
+	/** @var InvitationBus */
+	private $inviteHandler;
+
+	public static function getInstance(){
+		return self::$instance;
+	}
+
+	public function onLoad(){
+		self::$instance = $this;
+	}
+
 	public function onEnable(){
-		$this->getLogger()->error("This plugin is not finished. Disabling");
-		$this->getServer()->getPluginManager()->disablePlugin($this);
+		$this->party = new Party($this);
+		$this->inviteHandler = new InvitationBus($this);
+
+		$this->getServer()->getCommandMap()->register("Party", new CommandHandler($this));
+
+		Utils::send("&aEnabled &ePartyPlus &7v1.0");
+	}
+
+	/**
+	 * Returns a class that handles all of the
+	 * invitations from all of the party leaders.
+	 *
+	 * @return InvitationBus
+	 */
+	public function getInviteHandler(): InvitationBus{
+		return $this->inviteHandler;
+	}
+
+	/**
+	 * Gets the party class that handles all
+	 * the player parties.
+	 *
+	 * @return Party class
+	 */
+	public function getParty(): Party{
+		return $this->party;
 	}
 
 	/**
@@ -36,7 +77,6 @@ class PartyMain extends PluginBase {
 	 * @return string
 	 */
 	public function getPrefix(): string{
-		return "§9§lParty>§r ";
+		return "&c&lParty >&r ";
 	}
-
 }

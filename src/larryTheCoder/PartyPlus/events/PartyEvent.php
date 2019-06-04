@@ -18,24 +18,10 @@
  * @author larryTheCoder
  */
 
-namespace larryTheCoder\PartyPlus;
+namespace larryTheCoder\PartyPlus\events;
 
+use pocketmine\event\Event;
 
-use pocketmine\Server;
-use pocketmine\utils\TextFormat;
+class PartyEvent extends Event {
 
-class Utils {
-
-	public static function send($msg){
-		Server::getInstance()->getLogger()->info(self::getPrefix() . TextFormat::colorize($msg));
-	}
-
-	/**
-	 * Gets the prefix for this plugin.
-	 *
-	 * @return string
-	 */
-	public static function getPrefix(): string{
-		return "§aParty §c>>§r ";
-	}
 }

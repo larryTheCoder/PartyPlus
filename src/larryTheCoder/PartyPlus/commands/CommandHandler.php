@@ -20,7 +20,6 @@
 
 namespace larryTheCoder\PartyPlus\commands;
 
-
 use larryTheCoder\PartyPlus\PartyMain;
 use larryTheCoder\PartyPlus\Utils;
 use pocketmine\command\Command;

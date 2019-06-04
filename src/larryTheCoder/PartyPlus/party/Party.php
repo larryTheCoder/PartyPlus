@@ -20,7 +20,6 @@
 
 namespace larryTheCoder\PartyPlus\party;
 
-
 use larryTheCoder\PartyPlus\PartyMain;
 use larryTheCoder\PartyPlus\Utils;
 use pocketmine\Player;

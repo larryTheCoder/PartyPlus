@@ -73,7 +73,7 @@ class InvitationBus {
 	 * PartyHandler itself.
 	 *
 	 * @param Player $p
-	 * @return array|null
+	 * @return PartyHandler[]|null
 	 */
 	public function getInvites(Player $p){
 		return !isset($this->userPool[$p->getName()]) ? null : $this->userPool[$p->getName()];
@@ -85,11 +85,32 @@ class InvitationBus {
 	 * being accepted.
 	 *
 	 * @param Player $p
-	 * @param int $inviteId
+	 * @param int    $inviteId
 	 */
 	public function acceptInvite(Player $p, int $inviteId = 0){
 		if(!isset($this->userPool[$p->getName()]) && !isset($this->userPool[$p->getName()][$inviteId])){
-			$this->userPool[$p->getName()][$inviteId]->addMember($p);
+			$party = $this->userPool[$p->getName()][$inviteId];
+			$party->addMember($p);
+
+			$party->notifyLeader(Utils::getPrefix() . "§d{$p->getName()}§6 accepted your party invite request.");
+		}
+	}
+
+	/**
+	 * Declines an invite from a leader, this also notifies leader about the player
+	 * rejecting his/her request from earlier invite.
+	 *
+	 * @param Player $p
+	 * @param int    $inviteId
+	 */
+	public function declineInvite(Player $p, int $inviteId = 0){
+		if(!isset($this->userPool[$p->getName()]) && !isset($this->userPool[$p->getName()][$inviteId])){
+			$party = $this->userPool[$p->getName()][$inviteId];
+
+			unset($this->userPool[$p->getName()][$inviteId]);
+			unset($this->userTimeout[$p->getName()][$inviteId]);
+
+			$party->notifyLeader(Utils::getPrefix() . "§d{$p->getName()}§c rejected your party invite request.");
 		}
 	}
 
@@ -99,7 +120,7 @@ class InvitationBus {
 	 * the timeout, the player will be notified about it and
 	 * that player will not be able to join it again.
 	 *
-	 * @param Player $p
+	 * @param Player       $p
 	 * @param PartyHandler $party
 	 */
 	public function addInvitePool(Player $p, PartyHandler $party){
@@ -112,20 +133,20 @@ class InvitationBus {
 
 	function handleInvitePool(){
 		foreach($this->userTimeout as $user => $inviteId){
-			foreach($inviteId as $time){
+			foreach($inviteId as $useId => $time){
 				$this->userTimeout[$user]++;
 				if($time >= $this->inviteTimeout){
 					/** @var Player $p */
 					/** @var PartyHandler $party */
-					$p = $this->userPool[$user][$inviteId][0];
-					$party = $this->userPool[$user][$inviteId][1];
+					$p = $this->userPool[$user][$useId][0];
+					$party = $this->userPool[$user][$useId][1];
 
 					// Messages
 					$p->sendMessage(Utils::getPrefix() . "§cYour invitation from §e{$party->getLeader()->getName()}§c has expired.");
-					$party->getLeader()->sendMessage(Utils::getPrefix() . "§d{$user}§c rejected your party invite request.");
+					$party->notifyLeader(Utils::getPrefix() . "§d{$user}§c rejected your party invite request.");
 
-					unset($this->userPool[$user][$inviteId]);
-					unset($this->userTimeout[$user][$inviteId]);
+					unset($this->userPool[$user][$useId]);
+					unset($this->userTimeout[$user][$useId]);
 				}
 			}
 		}

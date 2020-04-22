@@ -41,7 +41,7 @@ class Party {
 	 * Creates a new party for the player.
 	 *
 	 * @param Player $p
-	 * @param bool $silence
+	 * @param bool   $silence
 	 */
 	public function createParty(Player $p, bool $silence = false){
 		// This check is required as this is inside the API handler
@@ -87,7 +87,7 @@ class Party {
 	 * Disband existing party from a player.
 	 *
 	 * @param Player $p
-	 * @param bool $silence
+	 * @param bool   $silence
 	 */
 	public function disbandParty(Player $p, bool $silence = false){
 		// Same as above, API boundaries
@@ -99,5 +99,7 @@ class Party {
 
 		$this->getParty($p->getName())->disbandParty();
 		unset($this->parties[strtolower($p->getName())]);
+
+		$p->sendMessage(Utils::getPrefix() . "§cYour party is now disbanded.");
 	}
 }

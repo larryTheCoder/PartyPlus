@@ -39,8 +39,8 @@ class CommandHandler extends Command {
 
 	/**
 	 * @param CommandSender $sender
-	 * @param string $commandLabel
-	 * @param string[] $args
+	 * @param string        $commandLabel
+	 * @param string[]      $args
 	 */
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
 		if(!($sender instanceof Player)){
@@ -54,15 +54,115 @@ class CommandHandler extends Command {
 			switch(strtolower($args[0])){
 				case "help":
 					$sender->sendMessage("§aAll Party commands:");
-					$sender->sendMessage("§d- §e/party invite [player]");
-					$sender->sendMessage("§d- §e/party invites");
-					$sender->sendMessage("§d- §e/party disband");
-					$sender->sendMessage("§d- §e/party kick [player]");
-					$sender->sendMessage("§d- §e/party leave");
-					$sender->sendMessage("§d- §e/party join [party]");
+					$sender->sendMessage("§d- §e/party invite [player] §c>§r Invite a player to your party.");
+					$sender->sendMessage("§d- §e/party kick [player] §c>§r Kick a member from your party.");
+					$sender->sendMessage("§d- §e/party accept [party] §c>§r Join a party from recent invitations");
+					$sender->sendMessage("§d- §e/party decline [party] §c>§r Join a party from recent invitations");
+					$sender->sendMessage("§d- §e/party invites §c>§r Check your pending invitations.");
+					$sender->sendMessage("§d- §e/party disband §c>§r Disband your currently active party.");
+					$sender->sendMessage("§d- §e/party leave §c>§r Leave your current party,");
+					$sender->sendMessage("§d- §e/party create §c>§r Create a new party.");
+					break;
+				case "create":
+					if($party->hasParty($sender->getName())){
+						$sender->sendMessage(Utils::getPrefix() . "§cYou already owned a party.");
+
+						break;
+					}
+
+					if($party->getParty($sender->getName()) == null){
+						$sender->sendMessage(Utils::getPrefix() . "§cUnable to create you a party.");
+					}
+					break;
+				case "accept":
+					$inviteBus = $this->plugin->getInviteHandler();
+
+					$playerInvites = $inviteBus->getInvites($sender);
+					if($playerInvites == null){
+						$sender->sendMessage(Utils::getPrefix() . "§6You have no new pending invitations.");
+
+						break;
+					}
+
+					if(count($playerInvites) === 1){
+						$inviteBus->acceptInvite($sender, 0);
+					}else{
+						if(isset($args[1])){
+							$sender->sendMessage(Utils::getPrefix() . "§cYou have more than 1 pending invitations.");
+							$sender->sendMessage(Utils::getPrefix() . "§cUse §d/p invites§c for more guidance.");
+							break;
+						}
+
+						$pData = $args[1];
+						if(is_numeric($pData) && isset($playerInvites[intval($pData)])){
+							$inviteBus->acceptInvite($sender, intval($pData));
+						}else{
+							foreach($playerInvites as $inviteId => $handler){
+								if(strtolower($handler->getLeader()->getName()) !== strtolower($pData)){
+									continue;
+								}
+
+								$inviteBus->acceptInvite($sender, $inviteId);
+								break 2;
+							}
+
+							$sender->sendMessage(Utils::getPrefix() . "§cInvalid parameters, §d/p invites§c for more guidance.");
+						}
+					}
+					break;
+				case "decline":
+					$inviteBus = $this->plugin->getInviteHandler();
+
+					$playerInvites = $inviteBus->getInvites($sender);
+					if($playerInvites == null){
+						$sender->sendMessage(Utils::getPrefix() . "§6You have no new pending invitations.");
+
+						break;
+					}
+
+					if(count($playerInvites) === 1){
+						$inviteBus->declineInvite($sender, 0);
+					}else{
+						if(isset($args[1])){
+							$sender->sendMessage(Utils::getPrefix() . "§cYou have more than 1 pending invitations.");
+							$sender->sendMessage(Utils::getPrefix() . "§cUse §d/p invites§c for more guidance.");
+							break;
+						}
+
+						$pData = $args[1];
+						if(is_numeric($pData) && isset($playerInvites[intval($pData)])){
+							$inviteBus->declineInvite($sender, intval($pData));
+						}else{
+							foreach($playerInvites as $inviteId => $handler){
+								if(strtolower($handler->getLeader()->getName()) !== strtolower($pData)){
+									continue;
+								}
+
+								$inviteBus->declineInvite($sender, $inviteId);
+								break 2;
+							}
+
+							$sender->sendMessage(Utils::getPrefix() . "§cInvalid parameters, §d/p invites§c for more guidance.");
+						}
+					}
 					break;
 				case "invites":
+					$inviteBus = $this->plugin->getInviteHandler();
 
+					$playerInvites = $inviteBus->getInvites($sender);
+					if($playerInvites == null){
+						$sender->sendMessage(Utils::getPrefix() . "§6You have no new pending invitations.");
+
+						break;
+					}
+
+					$sender->sendMessage("§aYou have §6" . count($playerInvites) . "§a invites pending:");
+					foreach($playerInvites as $id => $invite){
+						$sender->sendMessage("§e$id §a-> §d{$invite->getLeader()->getName()}");
+					}
+
+					$sender->sendMessage("§aUse §d/party accept [Number/Player Name]");
+					break;
 				case "invite":
 					// Check if the player in a party
 					if($args[1] == null){
@@ -90,16 +190,17 @@ class CommandHandler extends Command {
 					break;
 				case "disband":
 					// Check if the user has a party.
-					if($party->hasParty($sender->getName())){
+					if(!$party->hasParty($sender->getName())){
 						$sender->sendMessage(Utils::getPrefix() . "§cYou don't have a party!");
 
 						break;
 					}
 
 					// Now check if the user is the leader.
-					if($party->hasParty($sender->getName()) && $party->getParty($sender->getName())->isLeader($sender->getName())){
+					$plParty = $party->getParty($sender->getName());
+					if(!$plParty->isLeader($sender->getName())){
 						$sender->sendMessage(Utils::getPrefix() . "§cOnly your party leader can disband this party!");
-						$sender->sendMessage(Utils::getPrefix() . "§cUse &e/p leave &c to leave your current party.");
+						$sender->sendMessage(Utils::getPrefix() . "§cUse §e/p leave §c to leave your current party.");
 
 						break;
 					}
@@ -111,6 +212,7 @@ class CommandHandler extends Command {
 						// The player decided to disband the party so lets do it.
 
 						$party->disbandParty($sender);
+						break;
 					}
 
 					$sender->sendMessage(Utils::getPrefix() . "§cAre you sure to disband your party?");
@@ -119,13 +221,9 @@ class CommandHandler extends Command {
 					$this->disbandParties[$sender->getName()] = microtime(true);
 					break;
 				case "kick":
-					break;
 				case "setadmin":
-					break;
 				case "unsetadmin":
-					break;
 				case "leave":
-					break;
 				case "cancel":
 					break;
 			}

@@ -96,11 +96,20 @@ class PartyHandler implements Listener {
 	}
 
 	/**
+	 * Returns the list of players in this party.
+	 *
+	 * @return Player[]
+	 */
+	public function getMembers(): array{
+		return $this->members;
+	}
+
+	/**
 	 * Adds or removes the special privileges
 	 * for the user.
 	 *
 	 * @param string $user
-	 * @param int $type
+	 * @param int    $type
 	 */
 	public function setUserPermission(string $user, int $type){
 		switch($type){
@@ -179,9 +188,27 @@ class PartyHandler implements Listener {
 	}
 
 	/**
+	 * Notifies this party leader about the current happening in its party.
+	 *
+	 * @param string $message
+	 */
+	public function notifyLeader(string $message){
+		$this->leader->sendMessage(Utils::getPrefix() . $message);
+	}
+
+	/**
 	 * @param PlayerQuitEvent $event
 	 */
 	public function onPlayerLeave(PlayerQuitEvent $event){
+		$plName = $event->getPlayer()->getName();
+		if(isset($this->members[$plName])){
+			$this->notifyLeader("§e$plName §cjust left your party prior disconnection from server.");
+
+			if(isset($this->admins[$plName])){
+				unset($this->admins[$plName]);
+			}
+			$this->members[$plName];
+		}
 		if($event->getPlayer()->getName() !== $this->leader->getName()){
 			return;
 		}

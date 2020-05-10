@@ -88,9 +88,13 @@ class InvitationBus {
 	 * @param int    $inviteId
 	 */
 	public function acceptInvite(Player $p, int $inviteId = 0){
-		if(!isset($this->userPool[$p->getName()]) && !isset($this->userPool[$p->getName()][$inviteId])){
-			$party = $this->userPool[$p->getName()][$inviteId];
+		if(isset($this->userPool[$p->getName()]) && isset($this->userPool[$p->getName()][$inviteId])){
+			/** @var PartyHandler $party */
+			$party = $this->userPool[$p->getName()][$inviteId][1];
 			$party->addMember($p);
+
+			unset($this->userPool[$p->getName()][$inviteId]);
+			unset($this->userTimeout[$p->getName()][$inviteId]);
 
 			$party->notifyLeader(Utils::getPrefix() . "§d{$p->getName()}§6 accepted your party invite request.");
 		}
@@ -104,8 +108,9 @@ class InvitationBus {
 	 * @param int    $inviteId
 	 */
 	public function declineInvite(Player $p, int $inviteId = 0){
-		if(!isset($this->userPool[$p->getName()]) && !isset($this->userPool[$p->getName()][$inviteId])){
-			$party = $this->userPool[$p->getName()][$inviteId];
+		if(isset($this->userPool[$p->getName()]) && isset($this->userPool[$p->getName()][$inviteId])){
+			/** @var PartyHandler $party */
+			$party = $this->userPool[$p->getName()][$inviteId][1];
 
 			unset($this->userPool[$p->getName()][$inviteId]);
 			unset($this->userTimeout[$p->getName()][$inviteId]);

@@ -27,10 +27,24 @@ use pocketmine\Server;
 
 class Party {
 
+	// PROBABLE BUG, PARTY CHECKS ARE ONLY FOR LEADER, function getParty() L:88
+
 	/** @var PartyMain */
 	private $plugin;
 	/** @var PartyHandler[] */
 	private $parties;
+	/** @var PartyHandler[] */
+	private $partyCache = [];
+
+	private function invalidateCaches(){
+		foreach($this->parties as $data){
+			foreach($data->getMembers() as $member){
+				$this->partyCache[$member] = $data;
+			}
+
+			$this->partyCache[$data->getLeader()->getName()] = $data;
+		}
+	}
 
 	public function __construct(PartyMain $plugin){
 		$this->plugin = $plugin;
@@ -58,7 +72,9 @@ class Party {
 	}
 
 	public function hasParty(string $user): bool{
-		return isset($this->parties[strtolower($user)]);
+		$this->invalidateCaches();
+
+		return isset($this->partyCache[strtolower($user)]);
 	}
 
 	/**
@@ -80,7 +96,7 @@ class Party {
 			return $this->getParty($user);
 		}
 
-		return $this->parties[strtolower($user)];
+		return $this->partyCache[strtolower($user)];
 	}
 
 	/**
